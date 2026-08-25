@@ -22,6 +22,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ORG_ROOT = path.resolve(__dirname, '../..');
 const CAPTURE_ROOT = process.env.GLINT_CAPTURE_ROOT || path.join(ORG_ROOT, 'Glint-Capture');
 const WEB_ROOT = process.env.GLINT_WEB_ROOT || path.join(ORG_ROOT, 'Glint-Web');
+const BRIDGE_ROOT = process.env.GLINT_BRIDGE_ROOT || path.join(ORG_ROOT, 'Glint-Bridge');
 const WEB_BASE = process.env.GLINT_WEB_BASE || 'http://127.0.0.1:4173';
 
 function run(cmd, args, opts = {}) {
@@ -179,6 +180,47 @@ server.tool(
 );
 
 server.tool(
+  'glint_bridge_crawl',
+  'Run Glint Bridge crawl (Android package or web URL). Optional --ai uses GLINT_AI_API_KEY on the machine — navigates and keeps real store-worthy screens only.',
+  {
+    target: z.string().describe('Android package (com.app) or https URL'),
+    ai: z.boolean().default(true).describe('Intelligent crawl with user API key'),
+    maxScreens: z.number().int().min(1).max(40).default(16),
+    app: z.string().default('Captured App'),
+  },
+  async ({ target, ai, maxScreens, app }) => {
+    const isWeb = /^https?:\/\//i.test(target);
+    const args = [
+      path.join(BRIDGE_ROOT, 'glint.py'),
+      isWeb ? 'crawl-web' : 'crawl',
+      ...(isWeb ? ['--url', target] : ['--package', target]),
+      '--max-screens', String(maxScreens),
+      '--app', app,
+      ...(ai ? ['--ai'] : ['--no-ai']),
+    ];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    const outDir = path.join(BRIDGE_ROOT, 'output');
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          ok: result.code === 0,
+          mode: isWeb ? 'web' : 'android',
+          ai,
+          outputDir: outDir,
+          stdout: result.stdout.slice(-5000),
+          stderr: result.stderr.slice(-2000),
+          next: result.code === 0
+            ? 'Import Glint-Bridge/output into Glint Web, or glint_export'
+            : 'Need Appium (Android) or Playwright (web). For --ai set GLINT_AI_API_KEY. See Glint-Bridge README.',
+        }, null, 2),
+      }],
+      isError: result.code !== 0,
+    };
+  },
+);
+
+server.tool(
   'glint_export',
   'Headless export: session folder + template id → ZIP (requires Glint Web preview server + Playwright).',
   {
@@ -233,8 +275,10 @@ server.tool(
       smoke: path.join(ORG_ROOT, 'Glint-Docs/guides/smoke-checklist.md'),
       captureRoot: CAPTURE_ROOT,
       webRoot: WEB_ROOT,
+      bridgeRoot: BRIDGE_ROOT,
       webBase: WEB_BASE,
-      tools: ['glint_init', 'glint_capture', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
+      tools: ['glint_init', 'glint_capture', 'glint_bridge_crawl', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
+      aiCrawl: 'Set GLINT_AI_API_KEY locally; glint_bridge_crawl with ai:true',
     };
     return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
   },
