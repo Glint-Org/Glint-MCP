@@ -154,24 +154,61 @@ server.tool(
 
 server.tool(
   'glint_capture',
-  'Run `glint capture` in a Flutter app (writes session.json + real widget screenshots). Soft launch: prefer pixel9 only.',
+  'Run `glint capture` in a Flutter app (writes session.json + real widget screenshots). Soft launch: prefer pixel9 only. Set auto:true to scan lib/ for *Screen/*Page, write GLINTRule builders, then capture. No API keys — the agent is the intelligence.',
   {
     appDir: z.string().describe('Flutter app root'),
+    auto: z.boolean().default(false).describe('Discover screens from lib/ then capture'),
   },
-  async ({ appDir }) => {
+  async ({ appDir, auto }) => {
     const cwd = path.resolve(appDir);
-    let result = await run('glint', ['capture'], { cwd });
+    const captureArgs = auto ? ['capture', '--auto'] : ['capture'];
+    let result = await run('glint', captureArgs, { cwd });
     if (result.code !== 0) {
-      result = await run('dart', ['run', path.join(CAPTURE_ROOT, 'bin/glint.dart'), 'capture'], { cwd });
+      result = await run('dart', ['run', path.join(CAPTURE_ROOT, 'bin/glint.dart'), ...captureArgs], { cwd });
     }
     return {
       content: [{
         type: 'text',
         text: JSON.stringify({
           ok: result.code === 0,
+          auto,
           stdout: result.stdout.slice(-4000),
           stderr: result.stderr.slice(-4000),
           next: 'Import glint_screenshots/ into Glint Web, or call glint_export',
+        }, null, 2),
+      }],
+      isError: result.code !== 0,
+    };
+  },
+);
+
+server.tool(
+  'glint_discover',
+  'Scan a Flutter app lib/ for *Screen/*Page widgets and optionally write GLINTRule test file. No device, no API keys. Prefer this (or capture auto:true) when an agent should set up screenshots.',
+  {
+    appDir: z.string().describe('Flutter app root'),
+    write: z.boolean().default(true),
+    maxScreens: z.number().int().min(1).max(20).default(8),
+  },
+  async ({ appDir, write, maxScreens }) => {
+    const cwd = path.resolve(appDir);
+    const args = [
+      'discover',
+      ...(write ? ['--write'] : []),
+      '--max', String(maxScreens),
+    ];
+    let result = await run('glint', args, { cwd });
+    if (result.code !== 0) {
+      result = await run('dart', ['run', path.join(CAPTURE_ROOT, 'bin/glint.dart'), ...args], { cwd });
+    }
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          ok: result.code === 0,
+          stdout: result.stdout.slice(-5000),
+          stderr: result.stderr.slice(-2000),
+          next: result.code === 0 ? 'Review test/glint_screenshots_test.dart then glint_capture' : undefined,
         }, null, 2),
       }],
       isError: result.code !== 0,
@@ -277,8 +314,8 @@ server.tool(
       webRoot: WEB_ROOT,
       bridgeRoot: BRIDGE_ROOT,
       webBase: WEB_BASE,
-      tools: ['glint_init', 'glint_capture', 'glint_bridge_crawl', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
-      aiCrawl: 'Set GLINT_AI_API_KEY locally; glint_bridge_crawl with ai:true',
+      tools: ['glint_init', 'glint_discover', 'glint_capture', 'glint_bridge_crawl', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
+      agentNote: 'Capture: agent discovers/writes rules — no API keys. Bridge crawl --ai is optional vision (env key) or use heuristic crawl.',
     };
     return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
   },
