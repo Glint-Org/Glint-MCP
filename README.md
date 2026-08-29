@@ -42,5 +42,15 @@ cd ../Glint-Web && npm install && npm run build && npm run preview
 1. Prefer Capture discover/rules or Bridge crawl over inventing screenshots.  
 2. Soft launch Capture: **pixel9** only.  
 3. Do **not** ask users for Capture API keys — use discover/auto + your own reasoning.  
-4. After capture → validate → Web polish / `glint_export`.  
+4. After capture → validate → Web polish / `glint_export`.
 5. Never generate fabricated UI tiles (App Store 2.3.10).
+
+---
+
+<div align="center">
+
+<a href="https://github.com/darkmintis">
+  <img src="https://img.shields.io/badge/follow-%40Darkmintis-1DA1F2?style=social&logo=github" alt="Follow @Darkmintis"/>
+</a>
+
+</div>
