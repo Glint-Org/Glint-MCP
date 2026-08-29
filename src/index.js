@@ -154,7 +154,7 @@ server.tool(
 
 server.tool(
   'glint_capture',
-  'Run `glint capture` in a Flutter app (writes session.json + real widget screenshots). Soft launch: prefer pixel9 only. Set auto:true to scan lib/ for *Screen/*Page, write GLINTRule builders, then capture. No API keys — the agent is the intelligence.',
+  'Run glint capture in a Flutter app (writes session.json + real widget screenshots at store sizes). If no rules exist yet, run glint_discover first or write rules manually. Soft launch: one device (pixel9) for clean Web frame mapping. set auto:true to discover + write + capture in one step.',
   {
     appDir: z.string().describe('Flutter app root'),
     auto: z.boolean().default(false).describe('Discover screens from lib/ then capture'),
@@ -184,7 +184,7 @@ server.tool(
 
 server.tool(
   'glint_discover',
-  'Scan a Flutter app lib/ for *Screen/*Page widgets and optionally write GLINTRule test file. No device, no API keys. Prefer this (or capture auto:true) when an agent should set up screenshots.',
+  'Scan a Flutter app lib/ for the best marketing-worthy screens (home, feed, features, profile, settings). Ranks by visual richness (images, lists, cards, grids). Returns top 8 by default. If developer specified exact screens, skip this and write rules directly in test/glint_screenshots_test.dart.',
   {
     appDir: z.string().describe('Flutter app root'),
     write: z.boolean().default(true),
@@ -218,10 +218,10 @@ server.tool(
 
 server.tool(
   'glint_bridge_crawl',
-  'Run Glint Bridge crawl (Android package or web URL). Optional --ai uses GLINT_AI_API_KEY on the machine — navigates and keeps real store-worthy screens only.',
+  'Auto-crawl an Android app on a real device via ADB. Captures raw screenshots at device native resolution (no crop/resize). AI mode (with GLINT_AI_API_KEY) scores screens for store marketing value and navigates intelligently. Heuristic mode scrolls/taps and keeps unique screens. Output goes to Glint-Web for template polish.',
   {
-    target: z.string().describe('Android package (com.app) or https URL'),
-    ai: z.boolean().default(true).describe('Intelligent crawl with user API key'),
+    target: z.string().describe('Android package (com.app)'),
+    ai: z.boolean().default(true).describe('Use AI vision to score and navigate'),
     maxScreens: z.number().int().min(1).max(40).default(16),
     app: z.string().default('Captured App'),
   },
@@ -302,12 +302,18 @@ server.tool(
 
 server.tool(
   'glint_ecosystem_info',
-  'Return Glint soft-launch paths, principles, and golden-path summary.',
+  'Return Glint ecosystem info: paths, tools, and decision guide for screenshot capture.',
   {},
   async () => {
     const info = {
       principle: 'Real UI only — never invent App Store screenshots',
       loop: 'Capture/Bridge → session.json → Web → ZIP → View',
+      decisionGuide: {
+        flutterApp: 'Use glint_discover (auto) or write rules manually → glint_capture → output/ → Glint Web',
+        androidDevice: 'Use glint_bridge_crawl (auto) or glint_capture (manual) → output/ → Glint Web',
+        specifyScreens: 'Write rules directly in test/glint_screenshots_test.dart, skip discover',
+        noScreensSpecified: 'Run glint_discover --write to auto-find best marketing screens',
+      },
       goldenPath: path.join(ORG_ROOT, 'Glint-Docs/guides/golden-path.md'),
       smoke: path.join(ORG_ROOT, 'Glint-Docs/guides/smoke-checklist.md'),
       captureRoot: CAPTURE_ROOT,
@@ -315,7 +321,7 @@ server.tool(
       bridgeRoot: BRIDGE_ROOT,
       webBase: WEB_BASE,
       tools: ['glint_init', 'glint_discover', 'glint_capture', 'glint_bridge_crawl', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
-      agentNote: 'Capture: agent discovers/writes rules — no API keys. Bridge crawl --ai is optional vision (env key) or use heuristic crawl.',
+      agentNote: 'Agent is the intelligence. Discover finds best screens, capture runs the test, Bridge crawls real devices. No API keys needed for Capture. Bridge AI crawl uses user key from env.',
     };
     return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
   },
