@@ -26,6 +26,7 @@ const BRIDGE_ROOT = process.env.GLINT_BRIDGE_ROOT || path.join(ORG_ROOT, 'Glint-
 const WEB_BASE = process.env.GLINT_WEB_BASE || 'http://127.0.0.1:4173';
 
 function run(cmd, args, opts = {}) {
+  const timeout = opts.timeout || 120_000; // 2 minutes default
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
       cwd: opts.cwd,
@@ -37,7 +38,12 @@ function run(cmd, args, opts = {}) {
     child.stdout?.on('data', (d) => { stdout += d.toString(); });
     child.stderr?.on('data', (d) => { stderr += d.toString(); });
     child.on('error', reject);
+    const timer = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error(`Process timed out after ${timeout}ms: ${cmd} ${args.join(' ')}`));
+    }, timeout);
     child.on('close', (code) => {
+      clearTimeout(timer);
       resolve({ code, stdout, stderr });
     });
   });
@@ -220,22 +226,20 @@ server.tool(
   'glint_bridge_crawl',
   'Auto-crawl an Android app on a real device via ADB. Captures raw screenshots at device native resolution (no crop/resize). AI mode (with GLINT_AI_API_KEY) scores screens for store marketing value and navigates intelligently. Heuristic mode scrolls/taps and keeps unique screens. Output goes to Glint-Web for template polish.',
   {
-    target: z.string().describe('Android package (com.app)'),
+    target: z.string().describe('Android package (com.app) or URL for web crawl'),
     ai: z.boolean().default(true).describe('Use AI vision to score and navigate'),
     maxScreens: z.number().int().min(1).max(40).default(16),
-    app: z.string().default('Captured App'),
   },
-  async ({ target, ai, maxScreens, app }) => {
+  async ({ target, ai, maxScreens }) => {
     const isWeb = /^https?:\/\//i.test(target);
     const args = [
       path.join(BRIDGE_ROOT, 'glint.py'),
       isWeb ? 'crawl-web' : 'crawl',
       ...(isWeb ? ['--url', target] : ['--package', target]),
       '--max-screens', String(maxScreens),
-      '--app', app,
       ...(ai ? ['--ai'] : ['--no-ai']),
     ];
-    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT, timeout: 300_000 });
     const outDir = path.join(BRIDGE_ROOT, 'output');
     return {
       content: [{
