@@ -224,10 +224,10 @@ server.tool(
 
 server.tool(
   'glint_bridge_crawl',
-  'Auto-crawl an Android app on a real device via ADB. Captures raw screenshots at device native resolution (no crop/resize). AI mode (with GLINT_AI_API_KEY) scores screens for store marketing value and navigates intelligently. Heuristic mode scrolls/taps and keeps unique screens. Output goes to Glint-Web for template polish.',
+  'Headless auto-crawl (CI or no-agent use). Heuristic scroll/tap needs Appium; --ai needs GLINT_AI_API_KEY. Inside an agentic IDE prefer the glint_bridge_* step tools below — YOU are the planner, no API key needed.',
   {
     target: z.string().describe('Android package (com.app) or URL for web crawl'),
-    ai: z.boolean().default(true).describe('Use AI vision to score and navigate'),
+    ai: z.boolean().default(false).describe('Server-side AI vision (needs key). Default false: heuristic.'),
     maxScreens: z.number().int().min(1).max(40).default(16),
   },
   async ({ target, ai, maxScreens }) => {
@@ -254,6 +254,143 @@ server.tool(
           next: result.code === 0
             ? 'Import Glint-Bridge/output into Glint Web, or glint_export'
             : 'Need Appium (Android) or Playwright (web). For --ai set GLINT_AI_API_KEY. See Glint-Bridge README.',
+        }, null, 2),
+      }],
+      isError: result.code !== 0,
+    };
+  },
+);
+
+server.tool(
+  'glint_bridge_screenshot',
+  'Agent crawl step: capture one raw screenshot via ADB (no Appium, no API key). YOU decide keep/reject — keep 5-8 store-worthy screens.',
+  { serial: z.string().optional().describe('ADB serial (omit for single device)') },
+  async ({ serial }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'screenshot'];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_bridge_hierarchy',
+  'Agent crawl step: dump clickable/scrollable targets + on-screen text via ADB (no Appium, no API key). Bounds are [x1,y1][x2,y2] — tap the center.',
+  {
+    serial: z.string().optional().describe('ADB serial (omit for single device)'),
+    package: z.string().default('').describe('App package to scope the dump'),
+  },
+  async ({ serial, package: pkg }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'hierarchy', ...(pkg ? ['--package', pkg] : [])];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_bridge_tap',
+  'Agent crawl step: tap screen coordinates via ADB.',
+  {
+    x: z.number().int().describe('X pixel (center of hierarchy bounds)'),
+    y: z.number().int().describe('Y pixel (center of hierarchy bounds)'),
+    serial: z.string().optional(),
+  },
+  async ({ x, y, serial }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'tap', String(x), String(y)];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_bridge_scroll',
+  'Agent crawl step: swipe to reveal content via ADB.',
+  {
+    direction: z.enum(['forward', 'backward']).default('forward'),
+    serial: z.string().optional(),
+  },
+  async ({ direction, serial }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'scroll', direction];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_bridge_back',
+  'Agent crawl step: system back button via ADB.',
+  { serial: z.string().optional() },
+  async ({ serial }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'back'];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_bridge_launch',
+  'Agent crawl step: cold-launch an app package via ADB monkey.',
+  {
+    package: z.string().describe('Android package, e.g. com.example.app'),
+    serial: z.string().optional(),
+  },
+  async ({ package: pkg, serial }) => {
+    const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'launch', pkg];
+    const result = await run('python3', args, { cwd: BRIDGE_ROOT });
+    return { content: [{ type: 'text', text: result.stdout || result.stderr }], isError: result.code !== 0 };
+  },
+);
+
+server.tool(
+  'glint_render',
+  'No-browser render: design.json + screenshots → store-ready PNG ZIP via @napi-rs/canvas (no Playwright, no Fabric, no browser). Returns ZIP path + metadata.',
+  {
+    design: z.object({
+      template: z.string().describe('Template id (e.g. "blink-play", "play-pop", "warm-glow-play")'),
+      screenshots: z.array(z.string()).default([]).describe('Screenshot file paths, one per slide slot'),
+      overrides: z.object({
+        slides: z.record(z.object({
+          headline: z.string().optional(),
+          subheadline: z.string().optional(),
+          text: z.string().optional(),
+          color: z.string().optional(),
+          frame: z.string().optional(),
+          scale: z.number().optional(),
+        }).passthrough()).optional(),
+      }).default({}).optional(),
+      store: z.string().optional().describe('Store target (e.g. "play/phone", "ios/iphone")'),
+    }).describe('Design intent: template + screenshots + per-slide overrides'),
+    out: z.string().default('glint.zip').describe('Output ZIP path'),
+  },
+  async ({ design, out }) => {
+    const { writeFile: wf, mkdir: md } = await import('node:fs/promises');
+    const tmpDir = path.join(WEB_ROOT, '.glint-render');
+    await md(tmpDir, { recursive: true });
+    const designPath = path.join(tmpDir, `design-${Date.now()}.json`);
+    await wf(designPath, JSON.stringify(design, null, 2));
+    const args = [
+      path.join(WEB_ROOT, 'scripts/render.mjs'),
+      '--design', designPath,
+      '--screenshots', path.resolve(design.screenshots?.[0] ? path.dirname(design.screenshots[0]) : '.'),
+      '--out', path.resolve(out),
+      '--json',
+    ];
+    const result = await run('node', args, { cwd: WEB_ROOT, timeout: 60_000 });
+    let meta = {};
+    try { meta = JSON.parse(result.stdout.split('\n').filter(l => l.startsWith('{')).join('')); } catch {}
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          ok: result.code === 0,
+          out: path.resolve(out),
+          template: design.template,
+          slideCount: meta.count || 0,
+          canvas: meta.canvas || null,
+          stdout: result.stdout.slice(-2000),
+          stderr: result.stderr.slice(-1000),
+          tip: result.code !== 0
+            ? 'cd Glint-Web && npm install (needs @napi-rs/canvas). No browser needed.'
+            : undefined,
         }, null, 2),
       }],
       isError: result.code !== 0,
@@ -314,7 +451,7 @@ server.tool(
       loop: 'Capture/Bridge → session.json → Web → ZIP → View',
       decisionGuide: {
         flutterApp: 'Use glint_discover (auto) or write rules manually → glint_capture → output/ → Glint Web',
-        androidDevice: 'Use glint_bridge_crawl (auto) or glint_capture (manual) → output/ → Glint Web',
+        androidDevice: 'Agentic IDE: glint_bridge_launch → loop glint_bridge_screenshot + glint_bridge_hierarchy + tap/scroll/back, keep 5-8 best → output/ → Glint Web. Headless CI: glint_bridge_crawl (heuristic or --ai with key).',
         specifyScreens: 'Write rules directly in test/glint_screenshots_test.dart, skip discover',
         noScreensSpecified: 'Run glint_discover --write to auto-find best marketing screens',
       },
@@ -324,8 +461,8 @@ server.tool(
       webRoot: WEB_ROOT,
       bridgeRoot: BRIDGE_ROOT,
       webBase: WEB_BASE,
-      tools: ['glint_init', 'glint_discover', 'glint_capture', 'glint_bridge_crawl', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
-      agentNote: 'Agent is the intelligence. Discover finds best screens, capture runs the test, Bridge crawls real devices. No API keys needed for Capture. Bridge AI crawl uses user key from env.',
+      tools: ['glint_init', 'glint_discover', 'glint_capture', 'glint_bridge_crawl', 'glint_bridge_launch', 'glint_bridge_screenshot', 'glint_bridge_hierarchy', 'glint_bridge_tap', 'glint_bridge_scroll', 'glint_bridge_back', 'glint_render', 'glint_validate_session', 'glint_export', 'glint_ecosystem_info'],
+      agentNote: 'Agent is the intelligence: drive Bridge step tools yourself (no API key). glint_render = no-browser PNG compositing (no Playwright). glint_bridge_crawl --ai (user key) is for headless CI only.',
     };
     return { content: [{ type: 'text', text: JSON.stringify(info, null, 2) }] };
   },
