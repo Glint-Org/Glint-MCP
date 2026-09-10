@@ -44,6 +44,7 @@ cd ../Glint-Web && npm install && npm run build && npm run preview
 3. Do **not** ask users for Capture API keys — use discover/auto + your own reasoning.  
 4. After capture → validate → Web polish / `glint_export`.
 5. Never generate fabricated UI tiles (App Store 2.3.10).
+6. **Edit via `glint_render`:** headlines, colors, device `frame` (omit `scale` when swapping frames to keep display size). Live Fabric drag/resize is still the human editor until a canvas agent API exists.
 
 ---
 
