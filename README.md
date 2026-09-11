@@ -1,8 +1,8 @@
 # Glint MCP
 
-Thin MCP server so Cursor / Copilot / Claude Code can drive **real** Glint Capture / Bridge and headless export — not fake UI mockups.
+Thin MCP server so Cursor / Copilot / Claude Code can drive **real** Glint Capture / Bridge and headless export - not fake UI mockups.
 
-This is **Mode 2** (Headless / MCP) in Glint’s [editor modes](../Glint-Docs/reference/editor-modes.md): fast, offstage, final assets. **Mode 1** is the Web editor; **Mode 3** (Copilot) will reuse these verbs with a live telepresence session — see [Copilot mode](../Glint-Docs/guides/copilot-mode.md).
+This is **Mode 2** (Headless / MCP) in Glint’s [editor modes](../Glint-Docs/reference/editor-modes.md): fast, offstage, final assets. **Mode 1** is the Web editor; **Mode 3** (Copilot) will reuse these verbs with a live telepresence session - see [Copilot mode](../Glint-Docs/guides/copilot-mode.md).
 
 The **agent is the intelligence**. Developers should not paste LLM API keys into Capture.
 
@@ -44,10 +44,10 @@ cd ../Glint-Web && npm install && npm run build && npm run preview
 
 1. Prefer Capture discover/rules or Bridge crawl over inventing screenshots.  
 2. Soft launch Capture: **pixel9** only.  
-3. Do **not** ask users for Capture API keys — use discover/auto + your own reasoning.  
+3. Do **not** ask users for Capture API keys - use discover/auto + your own reasoning.  
 4. After capture → validate → Web polish / `glint_export`.
 5. Never generate fabricated UI tiles (App Store 2.3.10).
-6. **Edit via `glint_render`:** headlines, colors, device `frame` (omit `scale` when swapping frames to keep display size). Live Fabric drag/resize is Mode 1 (human editor) until Copilot’s canvas agent API lands — [editor modes](../Glint-Docs/reference/editor-modes.md).
+6. **Edit via `glint_render`:** headlines, colors, device `frame` (omit `scale` when swapping frames to keep display size). Live Fabric drag/resize is Mode 1 (human editor) until Copilot’s canvas agent API lands - [editor modes](../Glint-Docs/reference/editor-modes.md).
 
 ## Modes cheat sheet
 

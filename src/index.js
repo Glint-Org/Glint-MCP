@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Glint MCP — agent tools for real Capture + session validate + headless export.
+ * Glint MCP - agent tools for real Capture + session validate + headless export.
  *
  * Claude Code / Cursor:
  *   { "mcpServers": { "glint": { "command": "node", "args": ["/path/to/Glint-MCP/src/index.js"] } } }
  *
  * Env:
- *   GLINT_CAPTURE_ROOT — path to Glint-Capture package (for init/capture shell)
- *   GLINT_WEB_ROOT — path to Glint-Web (for headless export)
- *   GLINT_WEB_BASE — running Web preview URL (default http://127.0.0.1:4173)
+ *   GLINT_CAPTURE_ROOT - path to Glint-Capture package (for init/capture shell)
+ *   GLINT_WEB_ROOT - path to Glint-Web (for headless export)
+ *   GLINT_WEB_BASE - running Web preview URL (default http://127.0.0.1:4173)
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -106,7 +106,7 @@ const server = new McpServer({
 
 server.tool(
   'glint_validate_session',
-  'Validate a Glint session folder (session.json + PNG paths). Real UI only — never invent screens.',
+  'Validate a Glint session folder (session.json + PNG paths). Real UI only - never invent screens.',
   {
     sessionDir: z.string().describe('Directory containing session.json and PNGs'),
   },
@@ -224,7 +224,7 @@ server.tool(
 
 server.tool(
   'glint_bridge_crawl',
-  'Headless auto-crawl (CI or no-agent use). Heuristic scroll/tap needs Appium; --ai needs GLINT_AI_API_KEY. Inside an agentic IDE prefer the glint_bridge_* step tools below — YOU are the planner, no API key needed.',
+  'Headless auto-crawl (CI or no-agent use). Heuristic scroll/tap needs Appium; --ai needs GLINT_AI_API_KEY. Inside an agentic IDE prefer the glint_bridge_* step tools below - YOU are the planner, no API key needed.',
   {
     target: z.string().describe('Android package (com.app) or URL for web crawl'),
     ai: z.boolean().default(false).describe('Server-side AI vision (needs key). Default false: heuristic.'),
@@ -263,7 +263,7 @@ server.tool(
 
 server.tool(
   'glint_bridge_screenshot',
-  'Agent crawl step: capture one raw screenshot via ADB (no Appium, no API key). YOU decide keep/reject — keep 5-8 store-worthy screens.',
+  'Agent crawl step: capture one raw screenshot via ADB (no Appium, no API key). YOU decide keep/reject - keep 5-8 store-worthy screens.',
   { serial: z.string().optional().describe('ADB serial (omit for single device)') },
   async ({ serial }) => {
     const args = [path.join(BRIDGE_ROOT, 'bridge/agent.py'), ...(serial ? ['--serial', serial] : []), 'screenshot'];
@@ -274,7 +274,7 @@ server.tool(
 
 server.tool(
   'glint_bridge_hierarchy',
-  'Agent crawl step: dump clickable/scrollable targets + on-screen text via ADB (no Appium, no API key). Bounds are [x1,y1][x2,y2] — tap the center.',
+  'Agent crawl step: dump clickable/scrollable targets + on-screen text via ADB (no Appium, no API key). Bounds are [x1,y1][x2,y2] - tap the center.',
   {
     serial: z.string().optional().describe('ADB serial (omit for single device)'),
     package: z.string().default('').describe('App package to scope the dump'),
@@ -434,7 +434,7 @@ server.tool(
           stdout: result.stdout,
           stderr: result.stderr,
           tip: result.code !== 0
-            ? 'Start Web: cd Glint-Web && npm run build && npm run preview — then retry. Install: npx playwright install chromium'
+            ? 'Start Web: cd Glint-Web && npm run build && npm run preview - then retry. Install: npx playwright install chromium'
             : undefined,
         }, null, 2),
       }],
@@ -449,7 +449,7 @@ server.tool(
   {},
   async () => {
     const info = {
-      principle: 'Real UI only — never invent App Store screenshots',
+      principle: 'Real UI only - never invent App Store screenshots',
       loop: 'Capture/Bridge → session.json → Web → ZIP → View',
       decisionGuide: {
         flutterApp: 'Use glint_discover (auto) or write rules manually → glint_capture → output/ → Glint Web',
