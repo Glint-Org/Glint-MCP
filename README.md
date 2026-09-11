@@ -55,7 +55,7 @@ cd ../Glint-Web && npm install && npm run build && npm run preview
 |------|------|---------|
 | Hand polish in the UI | 1 Manual | Glint Web |
 | CI / fast agent ZIP | 2 Headless | This MCP |
-| Watch AI + teach-by-edit | 3 Copilot | Web + agent *(roadmap)* |
+| Watch AI + teach-by-edit | 3 Copilot | Web Copilot bar + `__GLINT_COPILOT__` *(MCP attach next)* |
 
 ---
 
